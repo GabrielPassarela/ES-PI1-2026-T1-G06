@@ -148,6 +148,17 @@ def autenticar_mesario():
 
 
 def registrar_voto():
+        """
+        Realiza o processo completo de votação de um eleitor.
+        Autentica o eleitor, solicita o número do candidato, exibe os dados
+        para confirmação e registra o voto (ou nulo, se número inválido).
+
+        Args:
+            Nenhum (lê entradas via terminal).
+
+        Returns:
+            None
+        """
         print("\n  --------------------------------------------------")
         print("               REGISTRAR VOTO")
         print("  --------------------------------------------------")
@@ -179,38 +190,62 @@ def registrar_voto():
 
             if eleitor['votou']:
                 print("\n  Este eleitor já votou.")
-                logs.log_alerta_acesso_negado("tentativa de voto duplicado")
+                logs.log_alerta_voto_duplo()
                 return
 
-            # Exibir candidatos disponíveis
-            cursor.execute("SELECT id, nome FROM CANDIDATOS")
-            candidatos = cursor.fetchall()
+            # Loop para digitação do número do candidato com possibilidade de redigitar
+            while True:
+                print("\n  --------------------------------------------------")
+                numero_votacao = input("  Digite o número do candidato: ").strip()
 
-            if not candidatos:
-                print("\n  Nenhum candidato cadastrado.")
-                return
+                # Busca candidato pelo número de votação
+                cursor.execute("""
+                    SELECT * FROM CANDIDATOS WHERE numerodevotacao = %s
+                """, (numero_votacao,))
+                candidato = cursor.fetchone()
 
-            print("\n  --- Candidatos disponíveis ---")
-            for c in candidatos:
-                print(f"  [{c['id']}] {c['nome']}")
+                if candidato:
+                    # Exibe dados do candidato para conferência (RF002.01.06.05)
+                    print("\n  --------------------------------------------------")
+                    print(f"  Nome:    {candidato['nome']}")
+                    print(f"  Número:  {candidato['numerodevotacao']}")
+                    print(f"  Partido: {candidato['partido']} ({candidato['sigla_partido']})")
+                    print("  --------------------------------------------------")
+                else:
+                    # Número não encontrado — voto será nulo se confirmado
+                    print("\n  --------------------------------------------------")
+                    print("  Número não encontrado.")
+                    print("  Se confirmar, o voto será registrado como NULO.")
+                    print("  --------------------------------------------------")
 
-            candidato_id = int(input("\n  Digite o ID do candidato: ").strip())
+                # Pede confirmação (RF002.01.06.06)
+                confirmacao = input("  Confirmar voto? (S/SIM = Confirmar / N/NAO = Redigitar): ").strip().upper()
 
-            # Verifica se o ID informado existe
-            ids_validos = [c['id'] for c in candidatos]
-            if candidato_id not in ids_validos:
-                print("\n  Candidato inválido.")
-                return
+                if confirmacao in ('S', 'SIM'):
+                    break  # Prossegue para registrar
+                elif confirmacao in ('N', 'NAO', 'NÃO'):
+                    # Retorna ao campo de número para redigitar
+                    continue
+                else:
+                    print("  Opção inválida. Digite S ou N.")
+                    continue
 
-            # Gerar protocolo e registrar voto
-            protocolo = f"PROT-{random.randint(100000, 999999)}"
+            # Gerar protocolo no padrão definido no projeto
+            letras = ''.join(random.choices(string.ascii_uppercase, k=2))
+            ano = "26"
+            num_candidato = candidato['numerodevotacao'][-2:].zfill(2) if candidato else "00"
+            digitos = ''.join(random.choices(string.digits, k=5))
+            protocolo = f"V{letras}{ano}{num_candidato}{digitos}"
+
+            # Registrar voto: candidato_id None se nulo
+            candidato_id = candidato['id'] if candidato else None
 
             cursor.execute("""
                 INSERT INTO VOTOS (candidato_id, data_hora, protocolo) 
                 VALUES (%s, NOW(), %s)
             """, (candidato_id, protocolo))
 
-            # Marcar eleitor como votou
+            # Marcar eleitor como votou (RF002.01.06.08)
             cursor.execute("""
                 UPDATE eleitores SET votou = 1 
                 WHERE titulo_eleitor = %s
@@ -218,7 +253,11 @@ def registrar_voto():
 
             conn.commit()
 
+            logs.log_sucesso_voto(titulo_eleitor)
+
             print("\n  Voto registrado com sucesso!")
+            if not candidato:
+                print("  (Voto registrado como NULO)")
             print(f"  Protocolo: {protocolo}")
             print("  --------------------------------------------------")
 
