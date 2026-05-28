@@ -3,28 +3,28 @@ USE projeto_integrador;
 
 CREATE TABLE ELEITORES(
 	id int auto_increment PRIMARY KEY,
-	nome_completo varchar (50) not null,
-	titulo_eleitor varchar (12) not null unique, 
-	cpf  varchar (11) not null unique,
+	nome_completo varchar(50) not null,
+	titulo_eleitor varchar(12) not null unique, 
+	cpf varchar(50) not null unique,
 	mesário boolean not null,
-	chave_acesso varchar (7) not null,
+	chave_acesso varchar(50) not null,
 	votou boolean default false
 );
 
-create table CANDIDATOS(
+CREATE TABLE CANDIDATOS(
 	id int auto_increment primary key,
-	nome varchar (50) not null,
-	numerodevotacao varchar (50) not null unique, 
-	partido varchar (30) not null,
-	sigla_partido varchar (10) not null
+	nome varchar(50) not null,
+	numerodevotacao varchar(50) not null unique, 
+	partido varchar(30) not null,
+	sigla_partido varchar(10) not null
 );
 
-create table VOTOS(
-id INT AUTO_INCREMENT PRIMARY KEY,
-    candidato_id INT, 
-    data_hora DATETIME NOT NULL,
-    protocolo VARCHAR(13) NOT NULL,
-    FOREIGN KEY (candidato_id) REFERENCES Candidatos(id)
+CREATE TABLE VOTOS(
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	candidato_id INT, 
+	data_hora DATETIME NOT NULL,
+	protocolo VARCHAR(50) NOT NULL,
+	FOREIGN KEY (candidato_id) REFERENCES Candidatos(id)
 );
 
 INSERT INTO CANDIDATOS (nome, numerodevotacao, partido, sigla_partido) VALUES 
@@ -42,6 +42,9 @@ INSERT INTO Votos (candidato_id, data_hora, protocolo) VALUES
 (2, NOW(), 'PROT-2026-002'),
 (1, NOW(), 'PROT-2026-003');
 
-select * from votos;
-select * from candidatos;
-select * from eleitores;
+SELECT * FROM votos;
+SELECT * FROM candidatos;
+SELECT * FROM eleitores;
+
+ALTER TABLE ELEITORES MODIFY COLUMN cpf VARCHAR(50);
+ALTER TABLE ELEITORES MODIFY COLUMN chave_acesso VARCHAR(50);

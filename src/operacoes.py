@@ -1,320 +1,545 @@
 import validacao
 import database
 import logs
+import criptografia
 import mysql.connector
 import random
 import string
 from datetime import datetime
 
-def gerar_chave():
-        caracteres = string.ascii_uppercase + string.digits
-        return ''.join(random.choices(caracteres, k=7))
-
 
 def cadastrar_eleitor():
-        nome = input("Digite o nome completo do eleitor: ").strip()
-        cpf = input("Digite o CPF do eleitor: ").strip()
+    """
+    Solicita os dados do eleitor, valida CPF e título de eleitor,
+    gera e criptografa a chave de acesso e o CPF, e salva no banco.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    nome = input("  Digite o nome completo do eleitor: ").strip()
+    cpf = input("  Digite o CPF do eleitor: ").strip()
+    cpf = cpf.replace(".", "").replace("-", "")
+
+    while not validacao.validacao(cpf):
+        print("  CPF inválido! Tente novamente.")
+        cpf = input("  Digite o CPF do eleitor: ").strip()
         cpf = cpf.replace(".", "").replace("-", "")
-        
-        while not validacao.validacao(cpf):
-            print("CPF inválido! Tente novamente.")
-            cpf = input("Digite o CPF do eleitor: ").strip()
-        
-        mesario = input("Você é mesário? (1 - Sim, 0 - Não): ").strip()
-        titulo_de_eleitor = input("Digite o número do título de eleitor: ").strip()
 
-        while not validacao.validacao_titulo(titulo_de_eleitor):
-            print("Título de eleitor inválido! Tente novamente.")
-            titulo_de_eleitor = input("Digite o número do título de eleitor: ").strip()
-        
-        chave_acesso = gerar_chave()
+    mesario = input("  É mesário? (1 - Sim, 0 - Não): ").strip()
+    titulo_de_eleitor = input("  Digite o número do título de eleitor: ").strip()
 
-        try:
-            conn = database.conectar()
-            cursor = conn.cursor()
+    while not validacao.validacao_titulo(titulo_de_eleitor):
+        print("  Título de eleitor inválido! Tente novamente.")
+        titulo_de_eleitor = input("  Digite o número do título de eleitor: ").strip()
 
-            sql = """INSERT INTO ELEITORES (nome_completo, titulo_eleitor, cpf, mesário, chave_acesso)
-                    VALUES (%s, %s, %s, %s, %s)"""
-            valores = (nome, titulo_de_eleitor, cpf, int(mesario), chave_acesso)
+    chave_acesso = criptografia.gerar_chave_acesso(nome)
+    chave_criptografada = criptografia.criptografar_chave_acesso(chave_acesso)
+    cpf_criptografado = criptografia.criptografar_cpf(cpf)
 
-            cursor.execute(sql, valores)
-            conn.commit()
-            print("\n  Eleitor cadastrado com sucesso!")
-            print(f"  Chave de acesso: {chave_acesso}")
+    try:
+        conn = database.conectar()
+        cursor = conn.cursor()
 
-        except mysql.connector.IntegrityError:
-            print("\n  Erro: CPF ou título de eleitor já cadastrado.")
-        except Exception as e:
-            print(f"\n  Erro ao cadastrar: {e}")
-        finally:
-            cursor.close()
-            conn.close()
+        sql = """INSERT INTO ELEITORES (nome_completo, titulo_eleitor, cpf, mesário, chave_acesso)
+                VALUES (%s, %s, %s, %s, %s)"""
+        valores = (nome, titulo_de_eleitor, cpf_criptografado, int(mesario), chave_criptografada)
+
+        cursor.execute(sql, valores)
+        conn.commit()
+        print("\n  Eleitor cadastrado com sucesso!")
+        print(f"  Chave de acesso: {chave_acesso}")
+
+    except mysql.connector.IntegrityError:
+        print("\n  Erro: CPF ou título de eleitor já cadastrado.")
+    except Exception as e:
+        print(f"\n  Erro ao cadastrar: {e}")
+    finally:
+        cursor.close()
+        conn.close()
 
 
 def buscar_eleitor():
-        cpf = input("Digite o CPF do eleitor a buscar: ").strip()
+    """
+    Busca um eleitor pelo CPF, criptografando-o antes de consultar o banco.
 
-        try:
-            conn = database.conectar()
-            cursor = conn.cursor(dictionary=True)
+    Args:
+        Nenhum.
 
-            cursor.execute("SELECT * FROM ELEITORES WHERE cpf = %s", (cpf,))
-            eleitor = cursor.fetchone()
+    Returns:
+        None
+    """
+    cpf = input("  Digite o CPF do eleitor a buscar: ").strip()
+    cpf = cpf.replace(".", "").replace("-", "")
+    cpf_criptografado = criptografia.criptografar_cpf(cpf)
 
-            if eleitor:
-                print("\n  --- Eleitor encontrado ---")
-                print(f"  Nome:    {eleitor['nome_completo']}")
-                print(f"  CPF:     {eleitor['cpf']}")
-                print(f"  Título:  {eleitor['titulo_eleitor']}")
-                print(f"  Mesário: {'Sim' if eleitor['mesário'] else 'Não'}")
-                print(f"  Votou:   {'Sim' if eleitor['votou'] else 'Não'}")
-            else:
-                print("\n  Eleitor não encontrado.")
+    try:
+        conn = database.conectar()
+        cursor = conn.cursor(dictionary=True)
 
-        except Exception as e:
-            print(f"\n  Erro ao buscar: {e}")
-        finally:
-            cursor.close()
-            conn.close()
+        cursor.execute("SELECT * FROM ELEITORES WHERE cpf = %s", (cpf_criptografado,))
+        eleitor = cursor.fetchone()
+
+        if eleitor:
+            print("\n  --- Eleitor encontrado ---")
+            print(f"  Nome:    {eleitor['nome_completo']}")
+            print(f"  CPF:     {cpf}")
+            print(f"  Título:  {eleitor['titulo_eleitor']}")
+            print(f"  Mesário: {'Sim' if eleitor['mesário'] else 'Não'}")
+            print(f"  Votou:   {'Sim' if eleitor['votou'] else 'Não'}")
+        else:
+            print("\n  Eleitor não encontrado.")
+
+    except Exception as e:
+        print(f"\n  Erro ao buscar: {e}")
+    finally:
+        cursor.close()
+        conn.close()
 
 
 def editar_eleitor():
-        print("\n  Em desenvolvimento.")
+    """
+    Edita os dados de um eleitor existente no banco de dados.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  Em desenvolvimento.")
+
 
 def remover_eleitor():
-        print("\n  Em desenvolvimento.")
+    """
+    Remove um eleitor do banco de dados.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  Em desenvolvimento.")
+
 
 def listar_eleitores():
+    """
+    Lista todos os eleitores cadastrados, descriptografando o CPF para exibição.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    try:
         conn = database.conectar()
         cursor = conn.cursor()
 
         cursor.execute("SELECT * FROM eleitores")
         resultados = cursor.fetchall()
 
-        for resultado in resultados:
-            print(f"\nID: {resultado[0]}")
-            print(f"Nome: {resultado[1]}")
-            print(f"Título: {resultado[2]}")
-            print(f"CPF: {resultado[3]}")
-            print(f"Mesário: {'Sim' if resultado[4] else 'Não'}")
-            print(f"Votou: {'Sim' if resultado[6] else 'Não'}")
-            print("--------------------------------------------------")
+        if not resultados:
+            print("\n  Nenhum eleitor cadastrado.")
+            return
 
+        print("\n  --------------------------------------------------")
+        for resultado in resultados:
+            cpf_legivel = criptografia.descriptografar_cpf(resultado[3])[:11]
+            print(f"\n  ID:      {resultado[0]}")
+            print(f"  Nome:    {resultado[1]}")
+            print(f"  Título:  {resultado[2]}")
+            print(f"  CPF:     {cpf_legivel}")
+            print(f"  Mesário: {'Sim' if resultado[4] else 'Não'}")
+            print(f"  Votou:   {'Sim' if resultado[6] else 'Não'}")
+            print("  --------------------------------------------------")
+
+    except Exception as e:
+        print(f"\n  Erro ao listar: {e}")
+    finally:
         cursor.close()
         conn.close()
 
+
 def cadastrar_candidato():
-        print("\n  Em desenvolvimento.")
+    """
+    Cadastra um novo candidato no banco de dados.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  Em desenvolvimento.")
+
 
 def editar_candidato():
-        print("\n  Em desenvolvimento.")
+    """
+    Edita os dados de um candidato existente no banco de dados.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  Em desenvolvimento.")
+
 
 def remover_candidato():
-        print("\n  Em desenvolvimento.")
+    """
+    Remove um candidato do banco de dados.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  Em desenvolvimento.")
+
 
 def buscar_candidato():
-        print("\n  Em desenvolvimento.")
+    """
+    Busca um candidato pelo número de votação.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  Em desenvolvimento.")
+
 
 def listar_candidatos():
-        print("\n  Em desenvolvimento.")
+    """
+    Lista todos os candidatos cadastrados no banco de dados.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  Em desenvolvimento.")
+
 
 def autenticar_mesario():
-        titulo_eleitor = input("digite seu titulo de eleitor: ")
-        cpf = input("digite os 4 primeiros dígitos do seu cpf: ")
-        chave = input("digite a chave de acesso: ")
+    """
+    Autentica o mesário pelo título, 4 primeiros dígitos do CPF e chave de acesso.
+    Realiza a zerézima após autenticação bem-sucedida.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  --------------------------------------------------")
+    print("         AUTENTICAÇÃO DO MESÁRIO / ZERÉZIMA")
+    print("  --------------------------------------------------")
+
+    titulo_eleitor = input("  Digite seu título de eleitor: ").strip()
+    cpf = input("  Digite os 4 primeiros dígitos do seu CPF: ").strip()
+    chave = input("  Digite sua chave de acesso: ").strip()
+
+    chave_criptografada = criptografia.criptografar_chave_acesso(chave)
+
+    try:
         conn = database.conectar()
         cursor = conn.cursor(dictionary=True)
-        try:
-            cursor.execute("SELECT * FROM eleitores WHERE titulo_eleitor = %s AND cpf LIKE %s AND chave_acesso = %s AND mesário = 1", (titulo_eleitor, f"{cpf}%", chave))
-            eleitor = cursor.fetchone()
-            if eleitor:
-                print("Autenticação bem-sucedida! Bem-vindo, mesário.")
-                cursor.execute("DELETE FROM VOTOS")
-                cursor.execute("UPDATE eleitores SET votou = 0")
-                conn.commit()
-                cursor.execute("SELECT * FROM CANDIDATOS")
-                resultados = cursor.fetchall()
-                for candidato in resultados:
-                    print(f"Candidato: {candidato['nome']} - Votos: 0")
-                logs.log_abertura()
-            else:
-                print("Dados inválidos ou usuário não é mesário.")
-                logs.log_alerta_acesso_negado("abertura de urna")
-        except Exception as e:
-            print(f"Erro: {e}")
-        finally:
-            cursor.close()
-            conn.close()
+
+        cursor.execute("""
+            SELECT * FROM eleitores 
+            WHERE titulo_eleitor = %s AND chave_acesso = %s AND mesário = 1
+        """, (titulo_eleitor, chave_criptografada))
+
+        eleitor = cursor.fetchone()
+
+        if not eleitor:
+            print("\n  Dados inválidos ou usuário não é mesário.")
+            logs.log_alerta_acesso_negado("abertura de urna")
+            return
+
+        cpf_banco = criptografia.descriptografar_cpf(eleitor['cpf'])
+        if not cpf_banco.startswith(cpf):
+            print("\n  Dados inválidos ou usuário não é mesário.")
+            logs.log_alerta_acesso_negado("abertura de urna")
+            return
+
+        print("\n  Autenticação bem-sucedida! Bem-vindo, mesário.")
+        print("\n  Realizando Zerézima...")
+
+        cursor.execute("DELETE FROM VOTOS")
+        cursor.execute("UPDATE eleitores SET votou = 0")
+        conn.commit()
+
+        cursor.execute("SELECT nome, numerodevotacao FROM CANDIDATOS ORDER BY nome ASC")
+        candidatos = cursor.fetchall()
+
+        print("\n  --------------------------------------------------")
+        print("  CANDIDATOS - TOTAL DE VOTOS: ZERO")
+        print("  --------------------------------------------------")
+        for c in candidatos:
+            print(f"  {c['nome']} (Nº {c['numerodevotacao']}): 0 voto(s)")
+        print("  --------------------------------------------------")
+
+        logs.log_abertura()
+
+    except Exception as e:
+        print(f"\n  Erro: {e}")
+    finally:
+        cursor.close()
+        conn.close()
 
 
 def registrar_voto():
-        print("\n  --------------------------------------------------")
-        print("               REGISTRAR VOTO")
-        print("  --------------------------------------------------")
+    """
+    Autentica o eleitor, exibe o candidato escolhido, confirma o voto
+    e registra no banco com protocolo criptografado.
 
-        # Autenticar eleitor
-        titulo_eleitor = input("  Digite seu título de eleitor: ").strip()
-        cpf = input("  Digite os 4 primeiros dígitos do seu CPF: ").strip()
-        chave = input("  Digite sua chave de acesso: ").strip()
+    Args:
+        Nenhum.
 
-        try:
-            conn = database.conectar()
-            cursor = conn.cursor(dictionary=True)
+    Returns:
+        None
+    """
+    print("\n  --------------------------------------------------")
+    print("               REGISTRAR VOTO")
+    print("  --------------------------------------------------")
 
-            cursor.execute("""
-                SELECT * FROM eleitores 
-                WHERE titulo_eleitor = %s 
-                AND cpf LIKE %s 
-                AND chave_acesso = %s 
-                AND mesário = 0
-            """, (titulo_eleitor, f"{cpf}%", chave))
+    titulo_eleitor = input("  Digite seu título de eleitor: ").strip()
+    cpf = input("  Digite os 4 primeiros dígitos do seu CPF: ").strip()
+    chave = input("  Digite sua chave de acesso: ").strip()
 
-            eleitor = cursor.fetchone()
+    chave_criptografada = criptografia.criptografar_chave_acesso(chave)
 
-            if not eleitor:
-                print("\n  Dados inválidos ou eleitor não encontrado.")
-                logs.log_alerta_acesso_negado("tentativa de voto inválida")
-                return
-
-            if eleitor['votou']:
-                print("\n  Este eleitor já votou.")
-                logs.log_alerta_voto_duplo()
-                return
-
-            while True:
-                print("\n  --------------------------------------------------")
-                numero_votacao = input("  Digite o número do candidato: ").strip()
-
-                cursor.execute("""
-                    SELECT * FROM CANDIDATOS WHERE numerodevotacao = %s
-                """, (numero_votacao,))
-                candidato = cursor.fetchone()
-
-                if candidato:
-
-                    print("\n  --------------------------------------------------")
-                    print(f"  Nome:    {candidato['nome']}")
-                    print(f"  Número:  {candidato['numerodevotacao']}")
-                    print(f"  Partido: {candidato['partido']} ({candidato['sigla_partido']})")
-                    print("  --------------------------------------------------")
-                else:
-
-                    print("\n  --------------------------------------------------")
-                    print("  Número não encontrado.")
-                    print("  Se confirmar, o voto será registrado como NULO.")
-                    print("  --------------------------------------------------")
-
-
-                confirmacao = input("  Confirmar voto? (S/SIM = Confirmar / N/NAO = Redigitar): ").strip().upper()
-
-                if confirmacao in ('S', 'SIM'):
-
-                elif confirmacao in ('N', 'NAO', 'NÃO'):
-
-                    continue
-                else:
-                    print("  Opção inválida. Digite S ou N.")
-                    continue
-
-
-            letras = ''.join(random.choices(string.ascii_uppercase, k=2))
-            ano = "26"
-            num_candidato = candidato['numerodevotacao'][-2:].zfill(2) if candidato else "00"
-            digitos = ''.join(random.choices(string.digits, k=5))
-            protocolo = f"V{letras}{ano}{num_candidato}{digitos}"
-
-
-            candidato_id = candidato['id'] if candidato else None
-
-            cursor.execute("""
-                INSERT INTO VOTOS (candidato_id, data_hora, protocolo) 
-                VALUES (%s, NOW(), %s)
-            """, (candidato_id, protocolo))
-
-            cursor.execute("""
-                UPDATE eleitores SET votou = 1 
-                WHERE titulo_eleitor = %s
-            """, (titulo_eleitor,))
-
-            conn.commit()
-
-            logs.log_sucesso_voto(titulo_eleitor)
-
-            print("\n  Voto registrado com sucesso!")
-            if not candidato:
-                print("  (Voto registrado como NULO)")
-            print(f"  Protocolo: {protocolo}")
-            print("  --------------------------------------------------")
-
-        except Exception as e:
-            print(f"\n  Erro ao registrar voto: {e}")
-        finally:
-            cursor.close()
-            conn.close()
-
-def encerrar_votacao():
-    
-        print("\n  --------------------------------------------------")
-        print("         ENCERRAMENTO DO SISTEMA DE VOTAÇÃO")
-        print("  --------------------------------------------------")
-    
-    
-        titulo_eleitor = input("digite seu titulo de eleitor: ")
-        cpf = input("digite os 4 primeiros digitos do seu cpf: ")
-        chave = input("digite a chave de acesso: ")
+    try:
         conn = database.conectar()
         cursor = conn.cursor(dictionary=True)
-        try:
-            cursor.execute("SELECT * FROM eleitores WHERE titulo_eleitor = %s AND cpf LIKE %s AND chave_acesso = %s AND mesário = 1", (titulo_eleitor, f"{cpf}%", chave))
-            eleitor = cursor.fetchone()
-            if eleitor:
-                confirmacao = input("Deseja realmente encerrar a votacao? (Sim/Nao): ")
-                confirmacao2 = confirmacao.lower()
-                if confirmacao2 != "sim":
-                    print("Encerramento cancelado.")
-                else:
-                    chave_confirmacao = input("Digite sua chave de acesso novamente: ")
-                    if chave_confirmacao != chave:
-                        print("Chave de acesso incorreta. Encerramento nao autorizado.")
-                        logs.log_alerta_acesso_negado("confirmação de chave no encerramento")
-                    else:
-                        print("Votacao encerrada com sucesso!")
-                        logs.log_encerramento()
+
+        cursor.execute("""
+            SELECT * FROM eleitores 
+            WHERE titulo_eleitor = %s 
+            AND chave_acesso = %s 
+            AND mesário = 0
+        """, (titulo_eleitor, chave_criptografada))
+
+        eleitor = cursor.fetchone()
+
+        if not eleitor:
+            print("\n  Dados inválidos ou eleitor não encontrado.")
+            logs.log_alerta_acesso_negado("tentativa de voto inválida")
+            return
+
+        cpf_banco = criptografia.descriptografar_cpf(eleitor['cpf'])
+        if not cpf_banco.startswith(cpf):
+            print("\n  Dados inválidos ou eleitor não encontrado.")
+            logs.log_alerta_acesso_negado("tentativa de voto inválida")
+            return
+
+        if eleitor['votou']:
+            print("\n  Este eleitor já votou.")
+            logs.log_alerta_voto_duplo(titulo_eleitor)
+            return
+
+        candidato = None
+
+        while True:
+            print("\n  --------------------------------------------------")
+            numero_votacao = input("  Digite o número do candidato: ").strip()
+
+            cursor.execute("SELECT * FROM CANDIDATOS WHERE numerodevotacao = %s", (numero_votacao,))
+            candidato = cursor.fetchone()
+
+            if candidato:
+                print("\n  --------------------------------------------------")
+                print(f"  Nome:    {candidato['nome']}")
+                print(f"  Número:  {candidato['numerodevotacao']}")
+                print(f"  Partido: {candidato['partido']} ({candidato['sigla_partido']})")
+                print("  --------------------------------------------------")
             else:
-                print("Dados invalidos ou usuario nao e mesário.")
-                logs.log_alerta_acesso_negado("encerramento de urna")
-        except Exception as e:
-            print(f"Erro: {e}")
-        finally:
-            cursor.close()
-            conn.close()
+                print("\n  --------------------------------------------------")
+                print("  Número não encontrado.")
+                print("  Se confirmar, o voto será registrado como NULO.")
+                print("  --------------------------------------------------")
+
+            confirmacao = input("  Confirmar voto? (S/SIM = Confirmar / N/NAO = Redigitar): ").strip().upper()
+
+            if confirmacao in ('S', 'SIM'):
+                break
+            elif confirmacao in ('N', 'NAO', 'NÃO'):
+                continue
+            else:
+                print("  Opção inválida. Digite S ou N.")
+                continue
+
+        # Gera e criptografa o protocolo
+        num_candidato = int(candidato['numerodevotacao'][-2:]) if candidato else 0
+        protocolo = criptografia.gerar_protocolo(num_candidato)
+        protocolo_criptografado = criptografia.criptografar_protocolo(protocolo)
+
+        candidato_id = candidato['id'] if candidato else None
+
+        cursor.execute("""
+            INSERT INTO VOTOS (candidato_id, data_hora, protocolo) 
+            VALUES (%s, NOW(), %s)
+        """, (candidato_id, protocolo_criptografado))
+
+        cursor.execute("""
+            UPDATE eleitores SET votou = 1 
+            WHERE titulo_eleitor = %s
+        """, (titulo_eleitor,))
+
+        conn.commit()
+
+        logs.log_sucesso_voto(titulo_eleitor)
+
+        print("\n  Voto registrado com sucesso!")
+        if not candidato:
+            print("  (Voto registrado como NULO)")
+        print(f"  Protocolo: {protocolo}")
+        print("  --------------------------------------------------")
+
+    except Exception as e:
+        print(f"\n  Erro ao registrar voto: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def encerrar_votacao():
+    """
+    Encerra a votação após autenticação do mesário com dupla confirmação da chave.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  --------------------------------------------------")
+    print("         ENCERRAMENTO DO SISTEMA DE VOTAÇÃO")
+    print("  --------------------------------------------------")
+
+    titulo_eleitor = input("  Digite seu título de eleitor: ").strip()
+    cpf = input("  Digite os 4 primeiros dígitos do seu CPF: ").strip()
+    chave = input("  Digite sua chave de acesso: ").strip()
+
+    chave_criptografada = criptografia.criptografar_chave_acesso(chave)
+
+    try:
+        conn = database.conectar()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT * FROM eleitores 
+            WHERE titulo_eleitor = %s AND chave_acesso = %s AND mesário = 1
+        """, (titulo_eleitor, chave_criptografada))
+
+        eleitor = cursor.fetchone()
+
+        if not eleitor:
+            print("\n  Dados inválidos ou usuário não é mesário.")
+            logs.log_alerta_acesso_negado("encerramento de urna")
+            return
+
+        cpf_banco = criptografia.descriptografar_cpf(eleitor['cpf'])
+        if not cpf_banco.startswith(cpf):
+            print("\n  Dados inválidos ou usuário não é mesário.")
+            logs.log_alerta_acesso_negado("encerramento de urna")
+            return
+
+        confirmacao = input("\n  Deseja realmente encerrar a votação? (Sim/Não): ").strip().lower()
+
+        if confirmacao != "sim":
+            print("\n  Encerramento cancelado.")
+            return
+
+        chave_confirmacao = input("  Digite sua chave de acesso novamente: ").strip()
+
+        if chave_confirmacao != chave:
+            print("\n  Chave de acesso incorreta. Encerramento não autorizado.")
+            logs.log_alerta_acesso_negado("confirmação de chave no encerramento")
+            return
+
+        print("\n  Votação encerrada com sucesso!")
+        logs.log_encerramento()
+
+    except Exception as e:
+        print(f"\n  Erro: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
 
 def exibir_logs():
-        logs.exibir_logs()
+    """
+    Exibe o arquivo de log de ocorrências no terminal.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    logs.exibir_logs()
+
 
 def exibir_protocolos():
-        print("\n  --------------------------------------------------")
-        print("           PROTOCOLOS DE VOTAÇÃO")
+    """
+    Exibe todos os protocolos de votação armazenados, descriptografando-os para exibição.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  --------------------------------------------------")
+    print("           PROTOCOLOS DE VOTAÇÃO")
+    print("  --------------------------------------------------")
+    try:
+        conn = database.conectar()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT protocolo, data_hora FROM VOTOS ORDER BY protocolo ASC")
+        protocolos = cursor.fetchall()
+
+        if not protocolos:
+            print("  Nenhum protocolo registrado.")
+        else:
+            for i, row in enumerate(protocolos, start=1):
+                protocolo_legivel = criptografia.descriptografar_protocolo(row[0])
+                print(f"  {i:>3}. {protocolo_legivel}  |  {row[1]}")
+
         print("  --------------------------------------------------")
-        try:
-            conn = database.conectar()
-            cursor = conn.cursor()
-            cursor.execute("SELECT protocolo, data_hora FROM VOTOS ORDER BY protocolo ASC")
-            protocolos = cursor.fetchall()
-            if not protocolos:
-                print("  Nenhum protocolo registrado.")
-            else:
-                for i, row in enumerate(protocolos, start=1):
-                    print(f"  {i:>3}. {row[0]}  |  {row[1]}")
-            print("  --------------------------------------------------")
-            print(f"  Total: {len(protocolos)} protocolo(s).")
-            print("  --------------------------------------------------")
-        except Exception as e:
-            print(f"\n  Erro ao exibir protocolos: {e}")
-        finally:
-            cursor.close()
-            conn.close()
+        print(f"  Total: {len(protocolos)} protocolo(s).")
+        print("  --------------------------------------------------")
+
+    except Exception as e:
+        print(f"\n  Erro ao exibir protocolos: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def boletim_urna():
+    """
+    Exibe o boletim de urna com os votos de cada candidato em ordem alfabética
+    e declara o vencedor da eleição.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
     print("\n  --------------------------------------------------")
     print("               BOLETIM DE URNA")
     print("  --------------------------------------------------")
@@ -324,11 +549,11 @@ def boletim_urna():
         cursor = conn.cursor(dictionary=True)
 
         cursor.execute("""
-            SELECT CANDIDATOS.nome, CANDIDATOS.numerodevotacao, CANDIDATOS.partido, COUNT(VOTOS.id) as total_votos
-            FROM CANDIDATOS
-            LEFT JOIN VOTOS ON VOTOS.candidato_id = CANDIDATOS.id
-            GROUP BY CANDIDATOS.id, CANDIDATOS.nome, CANDIDATOS.numerodevotacao, CANDIDATOS.partido
-            ORDER BY CANDIDATOS.nome ASC
+            SELECT c.nome, c.numerodevotacao, c.partido, COUNT(v.id) AS total_votos
+            FROM CANDIDATOS c
+            LEFT JOIN VOTOS v ON v.candidato_id = c.id
+            GROUP BY c.id, c.nome, c.numerodevotacao, c.partido
+            ORDER BY c.nome ASC
         """)
 
         candidatos = cursor.fetchall()
@@ -357,90 +582,114 @@ def boletim_urna():
         cursor.close()
         conn.close()
 
+
 def estatistica_comparecimento():
-        print("\n  --------------------------------------------------")
-        print("          ESTATÍSTICA DE COMPARECIMENTO")
-        print("  --------------------------------------------------")
+    """
+    Exibe a quantidade de eleitores que votaram e o percentual
+    em relação ao total de eleitores cadastrados.
 
-        try:
-            conn = database.conectar()
-            cursor = conn.cursor(dictionary=True)
+    Args:
+        Nenhum.
 
-            cursor.execute("SELECT COUNT(*) AS total FROM ELEITORES")
-            total_eleitores = cursor.fetchone()['total']
-
-            cursor.execute("SELECT COUNT(*) AS votaram FROM ELEITORES WHERE votou = 1")
-            total_votaram = cursor.fetchone()['votaram']
-
-            if total_eleitores == 0:
-                print("  Nenhum eleitor cadastrado.")
-                return
-
-            percentual = (total_votaram / total_eleitores) * 100
-
-            print(f"  Total de eleitores cadastrados: {total_eleitores}")
-            print(f"  Total que compareceram:           {total_votaram}")
-            print(f"  Percentual de comparecimento:   {percentual:.2f}%")
-            print("  --------------------------------------------------")
-
-        except Exception as e:
-            print(f"\n  Erro ao exibir comparecimento: {e}")
-        finally:
-            cursor.close()
-            conn.close()
-
-def votos_por_partido():
+    Returns:
+        None
+    """
     print("\n  --------------------------------------------------")
-    print("              VOTOS POR PARTIDO")
+    print("          ESTATÍSTICA DE COMPARECIMENTO")
     print("  --------------------------------------------------")
- 
+
     try:
         conn = database.conectar()
         cursor = conn.cursor(dictionary=True)
- 
+
+        cursor.execute("SELECT COUNT(*) AS total FROM ELEITORES")
+        total_eleitores = cursor.fetchone()['total']
+
+        cursor.execute("SELECT COUNT(*) AS votaram FROM ELEITORES WHERE votou = 1")
+        total_votaram = cursor.fetchone()['votaram']
+
+        if total_eleitores == 0:
+            print("  Nenhum eleitor cadastrado.")
+            return
+
+        percentual = (total_votaram / total_eleitores) * 100
+
+        print(f"  Total de eleitores cadastrados: {total_eleitores}")
+        print(f"  Total que compareceram:         {total_votaram}")
+        print(f"  Percentual de comparecimento:   {percentual:.2f}%")
+        print("  --------------------------------------------------")
+
+    except Exception as e:
+        print(f"\n  Erro ao exibir comparecimento: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def votos_por_partido():
+    """
+    Exibe a somatória de votos recebidos por cada partido, com percentual.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
+    print("\n  --------------------------------------------------")
+    print("              VOTOS POR PARTIDO")
+    print("  --------------------------------------------------")
+
+    try:
+        conn = database.conectar()
+        cursor = conn.cursor(dictionary=True)
+
         cursor.execute("""
-            SELECT
-                c.partido,
-                c.sigla_partido,
-                COUNT(v.id) AS total_votos
+            SELECT c.partido, c.sigla_partido, COUNT(v.id) AS total_votos
             FROM CANDIDATOS c
             LEFT JOIN VOTOS v ON v.candidato_id = c.id
             GROUP BY c.partido, c.sigla_partido
             ORDER BY total_votos DESC
         """)
- 
+
         partidos = cursor.fetchall()
- 
+
         if not partidos:
             print("  Nenhum dado encontrado.")
             print("  --------------------------------------------------")
             return
- 
-        # Total geral de votos para calcular percentual
+
         total_geral = sum(p['total_votos'] for p in partidos)
- 
+
         print(f"  {'Partido':<30} {'Sigla':<10} {'Votos':>6}  {'%':>6}")
         print(f"  {'-'*30} {'-'*10} {'-'*6}  {'-'*6}")
- 
+
         for p in partidos:
             percentual = (p['total_votos'] / total_geral * 100) if total_geral > 0 else 0.0
             print(f"  {p['partido']:<30} {p['sigla_partido']:<10} {p['total_votos']:>6}  {percentual:>5.1f}%")
- 
+
         print("  --------------------------------------------------")
         print(f"  Total de votos computados: {total_geral}")
         print("  --------------------------------------------------")
- 
-        if total_geral == 0:
-            print("  Nenhum voto registrado até o momento.")
-            print("  --------------------------------------------------")
- 
+
     except Exception as e:
         print(f"\n  Erro ao exibir votos por partido: {e}")
     finally:
         cursor.close()
         conn.close()
 
+
 def validacao_integridade():
+    """
+    Compara o total de votos registrados na urna com a quantidade de eleitores
+    marcados como 'já votou' para verificar a integridade da eleição.
+
+    Args:
+        Nenhum.
+
+    Returns:
+        None
+    """
     print("\n  --------------------------------------------------")
     print("           VALIDAÇÃO DE INTEGRIDADE")
     print("  --------------------------------------------------")
