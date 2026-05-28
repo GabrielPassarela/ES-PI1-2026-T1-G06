@@ -246,7 +246,7 @@ def autenticar_mesario():
 
     titulo_eleitor = input("  Digite seu título de eleitor: ").strip()
     cpf = input("  Digite os 4 primeiros dígitos do seu CPF: ").strip()
-    chave = input("  Digite sua chave de acesso: ").strip()
+    chave = input("  Digite sua chave de acesso: ").strip().upper()
 
     chave_criptografada = criptografia.criptografar_chave_acesso(chave)
 
@@ -315,7 +315,7 @@ def registrar_voto():
 
     titulo_eleitor = input("  Digite seu título de eleitor: ").strip()
     cpf = input("  Digite os 4 primeiros dígitos do seu CPF: ").strip()
-    chave = input("  Digite sua chave de acesso: ").strip()
+    chave = input("  Digite sua chave de acesso: ").strip().upper()
 
     chave_criptografada = criptografia.criptografar_chave_acesso(chave)
 
@@ -326,20 +326,19 @@ def registrar_voto():
         cursor.execute("""
             SELECT * FROM eleitores 
             WHERE titulo_eleitor = %s 
-            AND chave_acesso = %s 
-            AND mesário = 0
+            AND chave_acesso = %s
         """, (titulo_eleitor, chave_criptografada))
 
         eleitor = cursor.fetchone()
 
         if not eleitor:
-            print("\n  Dados inválidos ou eleitor não encontrado.")
+            print("\n  Dados inválidos: título de eleitor ou chave de acesso incorretos.")
             logs.log_alerta_acesso_negado("tentativa de voto inválida")
             return
 
         cpf_banco = criptografia.descriptografar_cpf(eleitor['cpf'])
         if not cpf_banco.startswith(cpf):
-            print("\n  Dados inválidos ou eleitor não encontrado.")
+            print("\n  Dados inválidos: CPF incorreto.")
             logs.log_alerta_acesso_negado("tentativa de voto inválida")
             return
 
@@ -429,7 +428,7 @@ def encerrar_votacao():
 
     titulo_eleitor = input("  Digite seu título de eleitor: ").strip()
     cpf = input("  Digite os 4 primeiros dígitos do seu CPF: ").strip()
-    chave = input("  Digite sua chave de acesso: ").strip()
+    chave = input("  Digite sua chave de acesso: ").strip().upper()
 
     chave_criptografada = criptografia.criptografar_chave_acesso(chave)
 

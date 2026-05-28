@@ -40,7 +40,7 @@ INSERT INTO Eleitores (nome_completo, titulo_eleitor, cpf, mesário, chave_acess
 INSERT INTO Votos (candidato_id, data_hora, protocolo) VALUES 
 (1, NOW(), 'PROT-2026-001'),
 (2, NOW(), 'PROT-2026-002'),
-(1, NOW(), 'PROT-2026-003');
+(1, NOW(), 'PROT-2026-003'); 
 
 SELECT * FROM votos;
 SELECT * FROM candidatos;
@@ -48,3 +48,5 @@ SELECT * FROM eleitores;
 
 ALTER TABLE ELEITORES MODIFY COLUMN cpf VARCHAR(50);
 ALTER TABLE ELEITORES MODIFY COLUMN chave_acesso VARCHAR(50);
+ALTER TABLE VOTOS DROP FOREIGN KEY votos_ibfk_2;
+ALTER TABLE VOTOS DROP COLUMN eleitor_id;
