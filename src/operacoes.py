@@ -61,42 +61,6 @@ def cadastrar_eleitor():
         conn.close()
 
 
-def buscar_eleitor():
-    """
-    Busca um eleitor pelo CPF, criptografando-o antes de consultar o banco.
-
-    Args:
-        Nenhum.
-
-    Returns:
-        None
-    """
-    cpf = input("  Digite o CPF do eleitor a buscar: ").strip()
-    cpf = cpf.replace(".", "").replace("-", "")
-    cpf_criptografado = criptografia.criptografar_cpf(cpf)
-
-    try:
-        conn = database.conectar()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("SELECT * FROM ELEITORES WHERE cpf = %s", (cpf_criptografado,))
-        eleitor = cursor.fetchone()
-
-        if eleitor:
-            print("\n  --- Eleitor encontrado ---")
-            print(f"  Nome:    {eleitor['nome_completo']}")
-            print(f"  CPF:     {cpf}")
-            print(f"  Título:  {eleitor['titulo_eleitor']}")
-            print(f"  Mesário: {'Sim' if eleitor['mesário'] else 'Não'}")
-            print(f"  Votou:   {'Sim' if eleitor['votou'] else 'Não'}")
-        else:
-            print("\n  Eleitor não encontrado.")
-
-    except Exception as e:
-        print(f"\n  Erro ao buscar: {e}")
-    finally:
-        cursor.close()
-        conn.close()
 
 
 def editar_eleitor():
@@ -109,10 +73,100 @@ def editar_eleitor():
     Returns:
         None
     """
-    print("\n  Em desenvolvimento.")
+    cpf = input("Digite o CPF do eleitor a editar: ").strip()
+    cpf = cpf.replace(".", "").replace("-", "")
 
+    cpf_criptografado = criptografia.criptografar_cpf(cpf)
+
+    try:
+        conn = database.conectar()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute(
+            "SELECT * FROM ELEITORES WHERE cpf = %s",
+            (cpf_criptografado,)
+        )
+
+        eleitor = cursor.fetchone()
+
+        if not eleitor:
+            print("Eleitor não encontrado.")
+            return
+
+        cpf_legivel = criptografia.descriptografar_cpf(eleitor['cpf'])[:11]
+
+        print(f"\n  Eleitor encontrado: {eleitor['nome_completo']}")
+        print("  Deixe em branco para manter o valor atual.")
+
+        novo_nome = input(f"  Novo nome [{eleitor['nome_completo']}]: ").strip()
+
+        novo_cpf = input(f"  Novo CPF [{cpf_legivel}]: ").strip()
+        novo_cpf = novo_cpf.replace(".", "").replace("-", "")
+
+        novo_titulo = input(f"  Novo título [{eleitor['titulo_eleitor']}]: ").strip()
+
+        novo_mesario = input(
+            f"  Mesário? (1-Sim, 0-Não) [{eleitor['mesário']}]: "
+        ).strip()
+
+        
+        if novo_nome == "":
+            novo_nome = eleitor['nome_completo']
+
+        
+        if novo_cpf == "":
+            novo_cpf_criptografado = eleitor['cpf']
+        else:
+            while not validacao.validacao(novo_cpf):
+                print("  CPF inválido! Tente novamente.")
+                novo_cpf = input("  Novo CPF: ").strip()
+                novo_cpf = novo_cpf.replace(".", "").replace("-", "")
+
+            novo_cpf_criptografado = criptografia.criptografar_cpf(novo_cpf)
+
+        
+        if novo_titulo == "":
+            novo_titulo = eleitor['titulo_eleitor']
+        else:
+            while not validacao.validacao_titulo(novo_titulo):
+                print("  Título inválido! Tente novamente.")
+                novo_titulo = input("  Novo título: ").strip()
+
+       
+        if novo_mesario == "":
+            novo_mesario = eleitor['mesário']
+
+        cursor.execute("""
+            UPDATE ELEITORES
+            SET nome_completo = %s,
+                cpf = %s,
+                titulo_eleitor = %s,
+                mesário = %s
+            WHERE cpf = %s
+        """, (
+            novo_nome,
+            novo_cpf_criptografado,
+            novo_titulo,
+            int(novo_mesario),
+            cpf_criptografado
+        ))
+
+        conn.commit()
+
+        print("\n  Eleitor atualizado com sucesso!")
+
+    except mysql.connector.IntegrityError:
+        print("\n  Erro: CPF ou título já cadastrado.")
+
+    except Exception as e:
+        print(f"\n  Erro ao editar: {e}")
+
+    finally:
+        cursor.close()
+        conn.close()
 
 def remover_eleitor():
+
     """
     Remove um eleitor do banco de dados.
 
@@ -122,8 +176,52 @@ def remover_eleitor():
     Returns:
         None
     """
-    print("\n  Em desenvolvimento.")
 
+    cpf = input("Digite o CPF do eleitor a remover: ").strip()
+    cpf = cpf.replace(".", "").replace("-", "")
+
+    cpf_criptografado = criptografia.criptografar_cpf(cpf)
+
+    try:
+        conn = database.conectar()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute(
+            "SELECT * FROM ELEITORES WHERE cpf = %s",
+            (cpf_criptografado,)
+        )
+
+        eleitor = cursor.fetchone()
+
+        if not eleitor:
+            print("Eleitor não encontrado.")
+            return
+
+        print(f"\n  Eleitor encontrado: {eleitor['nome_completo']}")
+
+        confirmacao = input(
+            "  Deseja realmente remover? (sim/não): "
+        ).strip().lower()
+
+        if confirmacao != "sim":
+            print("  Remoção cancelada.")
+            return
+
+        cursor.execute(
+            "DELETE FROM ELEITORES WHERE cpf = %s",
+            (cpf_criptografado,)
+        )
+
+        conn.commit()
+
+        print("\n  Eleitor removido com sucesso!")
+
+    except Exception as e:
+        print(f"\n  Erro ao remover: {e}")
+
+    finally:
+        cursor.close()
+        conn.close()
 
 def listar_eleitores():
     """
