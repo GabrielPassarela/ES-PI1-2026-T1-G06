@@ -1,3 +1,11 @@
+def ler_opcao():
+    while True:
+        try:
+            return int(input("  Escolha uma opção: "))
+        except ValueError:
+            print("\n  [ERRO] Digite apenas números.")
+
+
 def exibir_menu_principal():
     
     print("\n==================================================")
@@ -8,7 +16,7 @@ def exibir_menu_principal():
     print("  0 - Sair")
     print("==================================================")
 
-    opcao = int(input("  Escolha uma opção: "))
+    opcao = ler_opcao()
     return opcao
 
 
@@ -19,10 +27,9 @@ def exibir_menu_gerenciamento():
     print("--------------------------------------------------")
     print("  1 - Eleitores")
     print("  2 - Candidatos")
-    print("  0 - Voltar")
     print("--------------------------------------------------")
 
-    opcao = int(input("  Escolha uma opção: "))
+    opcao = ler_opcao()
     return opcao
 
 
@@ -36,10 +43,9 @@ def exibir_menu_eleitores():
     print("  3 - Remover eleitor")
     print("  4 - Buscar eleitor")
     print("  5 - Listar todos os eleitores")
-    print("  0 - Voltar")
     print("--------------------------------------------------")
 
-    opcao = int(input("  Escolha uma opção: "))
+    opcao = ler_opcao()
     return opcao
 
 
@@ -56,7 +62,7 @@ def exibir_menu_candidatos():
     print("  0 - Voltar")
     print("--------------------------------------------------")
 
-    opcao = int(input("  Escolha uma opção: "))
+    opcao = ler_opcao()
     return opcao
 
 
@@ -71,7 +77,7 @@ def exibir_menu_votacao():
     print("  0 - Voltar")
     print("--------------------------------------------------")
 
-    opcao = int(input("  Escolha uma opção: "))
+    opcao = ler_opcao()
     return opcao
 
 
@@ -83,10 +89,9 @@ def exibir_menu_abrir_votacao():
     print("  1 - Autenticar Mesário / Zerézima")
     print("  2 - Votar")
     print("  3 - Encerrar Votação")
-    print("  0 - Voltar")
     print("--------------------------------------------------")
 
-    opcao = int(input("  Escolha uma opção: "))
+    opcao = ler_opcao()
     return opcao
 
 
@@ -100,7 +105,7 @@ def exibir_menu_auditoria():
     print("  0 - Voltar")
     print("--------------------------------------------------")
 
-    opcao = int(input("  Escolha uma opção: "))
+    opcao = ler_opcao()
     return opcao
 
 
@@ -116,5 +121,5 @@ def exibir_menu_resultados():
     print("  0 - Voltar")
     print("--------------------------------------------------")
 
-    opcao = int(input("  Escolha uma opção: "))
+    opcao = ler_opcao()
     return opcao

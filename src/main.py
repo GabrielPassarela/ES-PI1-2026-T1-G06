@@ -84,9 +84,10 @@ while opc_principal != 0:
                 match opc_votacao:
 
                     case 1:  # Abrir Votação
-                        opc_abrir = -1
+                        if not operacoes.verificar_mesario_para_abrir_votacao():
+                            continue
 
-                        while opc_abrir != 0:
+                        while True:
 
                             opc_abrir = menus.exibir_menu_abrir_votacao()
 
@@ -96,9 +97,8 @@ while opc_principal != 0:
                                 case 2:
                                     operacoes.registrar_voto()
                                 case 3:
-                                    operacoes.encerrar_votacao()
-                                case 0:
-                                    pass
+                                    if operacoes.encerrar_votacao():
+                                        break
                                 case _:
                                     print("\n  [ERRO] Opção inválida.")
 

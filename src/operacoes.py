@@ -327,6 +327,59 @@ def listar_candidatos():
     print("\n  Em desenvolvimento.")
 
 
+def verificar_mesario_para_abrir_votacao():
+    """
+    Verifica CPF e título de eleitor antes de abrir o submenu de votação.
+
+    Returns:
+        bool: True se o eleitor for mesário, False caso contrário.
+    """
+    print("\n  --------------------------------------------------")
+    print("       VERIFICAÇÃO PARA ABRIR SISTEMA DE VOTAÇÃO")
+    print("  --------------------------------------------------")
+
+    titulo_eleitor = input("  Digite seu título de eleitor: ").strip()
+    cpf = input("  Digite seu CPF: ").strip()
+    cpf = cpf.replace(".", "").replace("-", "")
+
+    conn = None
+    cursor = None
+
+    try:
+        conn = database.conectar()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT * FROM eleitores
+            WHERE titulo_eleitor = %s
+        """, (titulo_eleitor,))
+
+        eleitor = cursor.fetchone()
+
+        if not eleitor or not eleitor['mesário']:
+            print("\n  Acesso negado. Apenas mesários podem abrir o sistema de votação.")
+            logs.log_alerta_acesso_negado("abertura do sistema de votação por não mesário")
+            return False
+
+        cpf_banco = criptografia.descriptografar_cpf(eleitor['cpf'])[:11]
+        if cpf_banco != cpf and eleitor['cpf'] != cpf:
+            print("\n  Acesso negado. CPF ou título de eleitor incorreto.")
+            logs.log_alerta_acesso_negado("abertura do sistema de votação com dados inválidos")
+            return False
+
+        print("\n  Mesário confirmado. Sistema de votação liberado.")
+        return True
+
+    except Exception as e:
+        print(f"\n  Erro ao verificar mesário: {e}")
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
 def autenticar_mesario():
     """
     Autentica o mesário pelo título, 4 primeiros dígitos do CPF e chave de acesso.
@@ -347,6 +400,9 @@ def autenticar_mesario():
     chave = input("  Digite sua chave de acesso: ").strip().upper()
 
     chave_criptografada = criptografia.criptografar_chave_acesso(chave)
+
+    conn = None
+    cursor = None
 
     try:
         conn = database.conectar()
@@ -411,39 +467,47 @@ def registrar_voto():
     print("               REGISTRAR VOTO")
     print("  --------------------------------------------------")
 
-    titulo_eleitor = input("  Digite seu título de eleitor: ").strip()
-    cpf = input("  Digite os 4 primeiros dígitos do seu CPF: ").strip()
-    chave = input("  Digite sua chave de acesso: ").strip().upper()
-
-    chave_criptografada = criptografia.criptografar_chave_acesso(chave)
+    conn = None
+    cursor = None
 
     try:
         conn = database.conectar()
         cursor = conn.cursor(dictionary=True)
 
-        cursor.execute("""
-            SELECT * FROM eleitores 
-            WHERE titulo_eleitor = %s 
-            AND chave_acesso = %s
-        """, (titulo_eleitor, chave_criptografada))
+        while True:
+            titulo_eleitor = input("  Digite seu título de eleitor: ").strip()
+            cpf = input("  Digite os 4 primeiros dígitos do seu CPF: ").strip()
+            chave = input("  Digite sua chave de acesso: ").strip().upper()
 
-        eleitor = cursor.fetchone()
+            chave_criptografada = criptografia.criptografar_chave_acesso(chave)
 
-        if not eleitor:
-            print("\n  Dados inválidos: título de eleitor ou chave de acesso incorretos.")
-            logs.log_alerta_acesso_negado("tentativa de voto inválida")
-            return
+            cursor.execute("""
+                SELECT * FROM eleitores
+                WHERE titulo_eleitor = %s
+                AND chave_acesso = %s
+            """, (titulo_eleitor, chave_criptografada))
 
-        cpf_banco = criptografia.descriptografar_cpf(eleitor['cpf'])
-        if not cpf_banco.startswith(cpf):
-            print("\n  Dados inválidos: CPF incorreto.")
-            logs.log_alerta_acesso_negado("tentativa de voto inválida")
-            return
+            eleitor = cursor.fetchone()
 
-        if eleitor['votou']:
-            print("\n  Este eleitor já votou.")
-            logs.log_alerta_voto_duplo(titulo_eleitor)
-            return
+            if not eleitor:
+                print("\n  Dados inválidos: título de eleitor ou chave de acesso incorretos.")
+                logs.log_alerta_acesso_negado("tentativa de voto inválida")
+                print("  Digite os dados novamente.\n")
+                continue
+
+            cpf_banco = criptografia.descriptografar_cpf(eleitor['cpf'])
+            if not cpf_banco.startswith(cpf):
+                print("\n  Dados inválidos: CPF incorreto.")
+                logs.log_alerta_acesso_negado("tentativa de voto inválida")
+                print("  Digite os dados novamente.\n")
+                continue
+
+            if eleitor['votou']:
+                print("\n  Este eleitor já votou.")
+                logs.log_alerta_voto_duplo(titulo_eleitor)
+                return
+
+            break
 
         candidato = None
 
@@ -506,8 +570,10 @@ def registrar_voto():
     except Exception as e:
         print(f"\n  Erro ao registrar voto: {e}")
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def encerrar_votacao():
@@ -530,6 +596,9 @@ def encerrar_votacao():
 
     chave_criptografada = criptografia.criptografar_chave_acesso(chave)
 
+    conn = None
+    cursor = None
+
     try:
         conn = database.conectar()
         cursor = conn.cursor(dictionary=True)
@@ -544,35 +613,39 @@ def encerrar_votacao():
         if not eleitor:
             print("\n  Dados inválidos ou usuário não é mesário.")
             logs.log_alerta_acesso_negado("encerramento de urna")
-            return
+            return False
 
         cpf_banco = criptografia.descriptografar_cpf(eleitor['cpf'])
         if not cpf_banco.startswith(cpf):
             print("\n  Dados inválidos ou usuário não é mesário.")
             logs.log_alerta_acesso_negado("encerramento de urna")
-            return
+            return False
 
         confirmacao = input("\n  Deseja realmente encerrar a votação? (Sim/Não): ").strip().lower()
 
         if confirmacao != "sim":
             print("\n  Encerramento cancelado.")
-            return
+            return False
 
         chave_confirmacao = input("  Digite sua chave de acesso novamente: ").strip()
 
         if chave_confirmacao != chave:
             print("\n  Chave de acesso incorreta. Encerramento não autorizado.")
             logs.log_alerta_acesso_negado("confirmação de chave no encerramento")
-            return
+            return False
 
         print("\n  Votação encerrada com sucesso!")
         logs.log_encerramento()
+        return True
 
     except Exception as e:
         print(f"\n  Erro: {e}")
+        return False
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def exibir_logs():
