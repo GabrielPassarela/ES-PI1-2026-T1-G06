@@ -10,12 +10,15 @@ from datetime import datetime
 
 def cadastrar_eleitor():
     """
-    Solicita os dados do eleitor, valida CPF e título de eleitor,
+    Solicita os dados do eleitor, valida CPF e titulo de eleitor,
     gera e criptografa a chave de acesso e o CPF, e salva no banco.
-
+ 
     Args:
-        Nenhum.
-
+        nome (str): Nome completo do eleitor informado pelo usuario.
+        cpf (str): CPF do eleitor, validado matematicamente antes do cadastro.
+        mesario (str): Indica se o eleitor e mesario (1 para Sim, 0 para Nao).
+        titulo_de_eleitor (str): Numero do titulo de eleitor, validado matematicamente.
+ 
     Returns:
         None
     """
@@ -65,11 +68,16 @@ def cadastrar_eleitor():
 
 def editar_eleitor():
     """
-    Edita os dados de um eleitor existente no banco de dados.
-
+    Busca um eleitor pelo CPF e permite a edicao dos seus dados,
+    mantendo as regras de validacao e unicidade de CPF e titulo.
+ 
     Args:
-        Nenhum.
-
+        cpf (str): CPF do eleitor a ser editado, informado pelo usuario.
+        novo_nome (str): Novo nome completo do eleitor, deixe vazio para manter o atual.
+        novo_cpf (str): Novo CPF do eleitor, revalidado matematicamente, deixe vazio para manter o atual.
+        novo_titulo (str): Novo titulo de eleitor, revalidado matematicamente, deixe vazio para manter o atual.
+        novo_mesario (str): Novo status de mesario do eleitor, deixe vazio para manter o atual.
+ 
     Returns:
         None
     """
@@ -168,11 +176,12 @@ def editar_eleitor():
 def remover_eleitor():
 
     """
-    Remove um eleitor do banco de dados.
-
+    Busca um eleitor pelo CPF e o remove do banco de dados apos confirmacao.
+ 
     Args:
-        Nenhum.
-
+        cpf (str): CPF do eleitor a ser removido, informado pelo usuario.
+        confirmacao (str): Confirmacao do usuario para prosseguir com a remocao (sim/nao).
+ 
     Returns:
         None
     """
@@ -225,11 +234,12 @@ def remover_eleitor():
 
 def listar_eleitores():
     """
-    Lista todos os eleitores cadastrados, descriptografando o CPF para exibição.
-
+    Lista todos os eleitores cadastrados no banco de dados,
+    descriptografando o CPF para exibicao legivel.
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao obtidos diretamente do banco.
+ 
     Returns:
         None
     """
@@ -264,11 +274,11 @@ def listar_eleitores():
 
 def cadastrar_candidato():
     """
-    Cadastra um novo candidato no banco de dados.
-
+    Cadastra um novo candidato com nome, numero de votacao e partido no banco.
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao obtidos diretamente do banco.
+ 
     Returns:
         None
     """
@@ -277,11 +287,11 @@ def cadastrar_candidato():
 
 def editar_candidato():
     """
-    Edita os dados de um candidato existente no banco de dados.
-
+    Edita os dados de um candidato existente, respeitando a regra de numero unico.
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao obtidos diretamente do banco.
+ 
     Returns:
         None
     """
@@ -290,11 +300,11 @@ def editar_candidato():
 
 def remover_candidato():
     """
-    Remove um candidato do banco de dados.
-
+    Remove um candidato do banco de dados pelo numero de votacao.
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao obtidos diretamente do banco.
+ 
     Returns:
         None
     """
@@ -303,11 +313,11 @@ def remover_candidato():
 
 def buscar_candidato():
     """
-    Busca um candidato pelo número de votação.
-
+    Busca um candidato no banco de dados pelo numero de votacao.
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao obtidos diretamente do banco.
+ 
     Returns:
         None
     """
@@ -317,10 +327,10 @@ def buscar_candidato():
 def listar_candidatos():
     """
     Lista todos os candidatos cadastrados no banco de dados.
-
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao obtidos diretamente do banco.
+ 
     Returns:
         None
     """
@@ -329,10 +339,15 @@ def listar_candidatos():
 
 def verificar_mesario_para_abrir_votacao():
     """
-    Verifica CPF e título de eleitor antes de abrir o submenu de votação.
-
+    Verifica se o eleitor informado possui perfil de mesario antes de
+    liberar o acesso ao submenu de votacao.
+ 
+    Args:
+        titulo_eleitor (str): Numero do titulo de eleitor informado pelo usuario.
+        cpf (str): CPF completo do eleitor informado pelo usuario.
+ 
     Returns:
-        bool: True se o eleitor for mesário, False caso contrário.
+        bool: True se o eleitor for mesario e os dados forem validos, False caso contrario.
     """
     print("\n  --------------------------------------------------")
     print("       VERIFICAÇÃO PARA ABRIR SISTEMA DE VOTAÇÃO")
@@ -382,12 +397,15 @@ def verificar_mesario_para_abrir_votacao():
 
 def autenticar_mesario():
     """
-    Autentica o mesário pelo título, 4 primeiros dígitos do CPF e chave de acesso.
-    Realiza a zerézima após autenticação bem-sucedida.
-
+    Autentica o mesario pelo titulo de eleitor, primeiros 4 digitos do CPF
+    e chave de acesso criptografada. Apos autenticacao, executa a Zerezima,
+    apagando votos anteriores e exibindo todos os candidatos com zero votos.
+ 
     Args:
-        Nenhum.
-
+        titulo_eleitor (str): Numero do titulo de eleitor do mesario.
+        cpf (str): Primeiros 4 digitos do CPF do mesario.
+        chave (str): Chave de acesso do mesario.
+ 
     Returns:
         None
     """
@@ -454,12 +472,16 @@ def autenticar_mesario():
 
 def registrar_voto():
     """
-    Autentica o eleitor, exibe o candidato escolhido, confirma o voto
-    e registra no banco com protocolo criptografado.
-
+    Autentica o eleitor pelo titulo, primeiros 4 digitos do CPF e chave de acesso,
+    exibe o candidato escolhido pelo numero de votacao, solicita confirmacao
+    e registra o voto no banco com protocolo criptografado.
+ 
     Args:
-        Nenhum.
-
+        titulo_eleitor (str): Numero do titulo de eleitor do eleitor.
+        cpf (str): Primeiros 4 digitos do CPF do eleitor.
+        chave (str): Chave de acesso do eleitor.
+        numero_votacao (str): Numero do candidato escolhido pelo eleitor.
+ 
     Returns:
         None
     """
@@ -578,13 +600,18 @@ def registrar_voto():
 
 def encerrar_votacao():
     """
-    Encerra a votação após autenticação do mesário com dupla confirmação da chave.
-
+    Encerra a votacao apos autenticacao do mesario com dupla confirmacao da chave.
+    Registra o encerramento no arquivo de log.
+ 
     Args:
-        Nenhum.
-
+        titulo_eleitor (str): Numero do titulo de eleitor do mesario.
+        cpf (str): Primeiros 4 digitos do CPF do mesario.
+        chave (str): Chave de acesso do mesario.
+        confirmacao (str): Confirmacao do mesario para encerrar (Sim/Nao).
+        chave_confirmacao (str): Segunda insercao da chave para dupla confirmacao.
+ 
     Returns:
-        None
+        bool: Retorna True se o encerramento foi realizado com sucesso, False caso contrario.
     """
     print("\n  --------------------------------------------------")
     print("         ENCERRAMENTO DO SISTEMA DE VOTAÇÃO")
@@ -650,11 +677,11 @@ def encerrar_votacao():
 
 def exibir_logs():
     """
-    Exibe o arquivo de log de ocorrências no terminal.
-
+    Le e exibe no terminal o conteudo do arquivo de log de ocorrencias.
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao lidos do arquivo de log.
+ 
     Returns:
         None
     """
@@ -663,11 +690,12 @@ def exibir_logs():
 
 def exibir_protocolos():
     """
-    Exibe todos os protocolos de votação armazenados, descriptografando-os para exibição.
-
+    Lista todos os protocolos de votacao armazenados no banco de dados,
+    descriptografando-os antes da exibicao, em ordem alfabetica.
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao obtidos diretamente do banco.
+ 
     Returns:
         None
     """
@@ -701,12 +729,12 @@ def exibir_protocolos():
 
 def boletim_urna():
     """
-    Exibe o boletim de urna com os votos de cada candidato em ordem alfabética
-    e declara o vencedor da eleição.
-
+    Exibe o boletim de urna com os votos consolidados por candidato
+    em ordem alfabetica e declara o vencedor da eleicao.
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao obtidos diretamente do banco.
+ 
     Returns:
         None
     """
@@ -755,12 +783,12 @@ def boletim_urna():
 
 def estatistica_comparecimento():
     """
-    Exibe a quantidade de eleitores que votaram e o percentual
-    em relação ao total de eleitores cadastrados.
-
+    Exibe a quantidade absoluta de eleitores que votaram e o percentual
+    de comparecimento em relacao ao total de eleitores cadastrados.
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao obtidos diretamente do banco.
+ 
     Returns:
         None
     """
@@ -798,11 +826,12 @@ def estatistica_comparecimento():
 
 def votos_por_partido():
     """
-    Exibe a somatória de votos recebidos por cada partido, com percentual.
-
+    Exibe a somatoria de votos recebidos por cada partido com percentual
+    em relacao ao total geral de votos computados.
+ 
     Args:
-        Nenhum.
-
+        Nenhum argumento externo. Os dados sao obtidos diretamente do banco.
+ 
     Returns:
         None
     """
@@ -851,12 +880,12 @@ def votos_por_partido():
 
 def validacao_integridade():
     """
-    Compara o total de votos registrados na urna com a quantidade de eleitores
-    marcados como 'já votou' para verificar a integridade da eleição.
-
+    Compara o total de votos registrados na tabela VOTOS com a quantidade
+    de eleitores marcados como votou = 1, verificando a integridade da eleicao.
+ 
     Args:
         Nenhum.
-
+ 
     Returns:
         None
     """
